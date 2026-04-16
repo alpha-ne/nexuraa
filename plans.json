@@ -1,0 +1,71 @@
+[
+  {
+    "model": "policies.plantier",
+    "pk": 1,
+    "fields": {
+      "slug": "basic",
+      "name": "Basic Shield",
+      "description": "Essential income protection for occasional gig workers. Covers all 6 disruption trigger types with automatic UPI payout.",
+      "base_premium": "29.00",
+      "weekly_coverage": "500.00",
+      "features": [
+        "All 6 trigger types",
+        "Zero-touch auto-claim",
+        "UPI payout < 2 hours",
+        "WhatsApp alerts"
+      ],
+      "is_recommended": false,
+      "is_active": true,
+      "sort_order": 1,
+      "razorpay_plan_id": ""
+    }
+  },
+  {
+    "model": "policies.plantier",
+    "pk": 2,
+    "fields": {
+      "slug": "standard",
+      "name": "Standard Shield",
+      "description": "Our most popular plan. Doubles coverage and adds weekly risk forecasts and Risk Circle access.",
+      "base_premium": "49.00",
+      "weekly_coverage": "1000.00",
+      "features": [
+        "All 6 trigger types",
+        "Zero-touch auto-claim",
+        "UPI payout < 2 hours",
+        "WhatsApp alerts",
+        "Weekly risk forecast",
+        "Risk Circle access"
+      ],
+      "is_recommended": true,
+      "is_active": true,
+      "sort_order": 2,
+      "razorpay_plan_id": ""
+    }
+  },
+  {
+    "model": "policies.plantier",
+    "pk": 3,
+    "fields": {
+      "slug": "premium",
+      "name": "Premium Shield",
+      "description": "Maximum protection for full-time delivery workers. Includes IncomeDNA report, dynamic risk pricing, and priority support.",
+      "base_premium": "79.00",
+      "weekly_coverage": "2000.00",
+      "features": [
+        "All 6 trigger types",
+        "Zero-touch auto-claim",
+        "UPI payout < 2 hours",
+        "WhatsApp + Email alerts",
+        "Weekly risk forecast",
+        "Risk Circle + IncomeDNA",
+        "Priority support",
+        "Dynamic risk pricing"
+      ],
+      "is_recommended": false,
+      "is_active": true,
+      "sort_order": 3,
+      "razorpay_plan_id": ""
+    }
+  }
+]

@@ -1,0 +1,341 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Dashboard — Nexura{% endblock %}
+{% block page_title %}Good to see you, {{ profile.name|default:request.user.mobile }} 👋{% endblock %}
+{% block page_subtitle %}Here's your protection summary for this week.{% endblock %}
+{% block sidebar_dashboard %}active{% endblock %}
+{% block sidebar_coverage %}{{ active_policy.weekly_coverage|default:"—" }}{% endblock %}
+{% block notif_count %}{% if kyc_status != 'approved' and kyc_status != 'verified' %}1{% endif %}{% endblock %}
+
+{% block content %}
+
+{# ── KYC Banner ─────────────────────────────────────────────────────── #}
+{% if kyc_status != 'approved' and kyc_status != 'verified' %}
+<div class="kyc-banner mb-4 {% if kyc_status == 'approved' or kyc_status == 'verified' %}verified{% endif %}">
+    <div class="d-flex align-items-center gap-3">
+        <i class="fas fa-id-card fa-2x text-warning"></i>
+        <div>
+            <p class="fw-bold mb-0">
+                {% if kyc_status == 'pending' %}Complete Your KYC{% endif %}
+                {% if kyc_status == 'submitted' or kyc_status == 'in_review' %}KYC Under Review{% endif %}
+                {% if kyc_status == 'rejected' %}KYC Rejected — Please Re-submit{% endif %}
+            </p>
+            <p class="mb-0 small text-muted">
+                {% if kyc_status == 'pending' %}Verify your Aadhaar to unlock full payout eligibility.{% endif %}
+                {% if kyc_status == 'submitted' or kyc_status == 'in_review' %}Usually verified within 24 hours.{% endif %}
+                {% if kyc_status == 'rejected' %}{{ request.user.kyc.rejection_reason|default:"Please resubmit your Aadhaar." }}{% endif %}
+            </p>
+        </div>
+    </div>
+    {% if kyc_status == 'pending' or kyc_status == 'rejected' %}
+    <a href="{% url 'workers:account' %}#kyc" class="btn btn-warning rounded-pill px-4 py-2 fw-semibold flex-shrink-0">
+        Verify Now <i class="fas fa-arrow-right ms-1"></i>
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── Stat Cards ─────────────────────────────────────────────────────── #}
+<div class="row g-4 mb-4">
+
+    <div class="col-6 col-lg-3">
+        <div class="nexura-stat-card">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="stat-icon bg-primary-soft">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div>
+                    <p class="stat-label mb-0">Coverage</p>
+                    <p class="stat-value mb-0">
+                        {% if active_policy %}₹{{ active_policy.weekly_coverage }}{% else %}—{% endif %}
+                    </p>
+                </div>
+            </div>
+            <p class="text-muted mb-0" style="font-size:12px;">
+                {% if active_policy %}
+                    <span class="status-badge active">Active</span>
+                    {{ active_policy.plan_tier.name }}
+                {% else %}
+                    <a href="{% url 'policies:plans' %}" class="text-primary fw-semibold">Get Protected →</a>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="nexura-stat-card">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="stat-icon bg-success-soft">
+                    <i class="fas fa-rupee-sign"></i>
+                </div>
+                <div>
+                    <p class="stat-label mb-0">Total Paid Out</p>
+                    <p class="stat-value mb-0">₹{{ total_paid_out|floatformat:0 }}</p>
+                </div>
+            </div>
+            <p class="text-muted mb-0" style="font-size:12px;">All-time payouts received</p>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="nexura-stat-card">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="stat-icon bg-warning-soft">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div>
+                    <p class="stat-label mb-0">Claims</p>
+                    <p class="stat-value mb-0">{{ approved_claims }}/{{ total_claims }}</p>
+                </div>
+            </div>
+            <p class="text-muted mb-0" style="font-size:12px;">Approved / Total</p>
+        </div>
+    </div>
+
+    <div class="col-6 col-lg-3">
+        <div class="nexura-stat-card">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="stat-icon bg-orange-soft">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <div>
+                    <p class="stat-label mb-0">Risk Score</p>
+                    <p class="stat-value mb-0">{{ profile.risk_score|floatformat:2 }}</p>
+                </div>
+            </div>
+            <span class="status-badge {% if profile.risk_color == 'danger' %}rejected{% elif profile.risk_color == 'warning' %}pending{% else %}active{% endif %}">
+                {{ profile.risk_label }}
+            </span>
+        </div>
+    </div>
+
+</div>
+
+{# ── Main Grid ───────────────────────────────────────────────────────── #}
+<div class="row g-4">
+
+    {# Policy Card #}
+    <div class="col-lg-5">
+        {% if active_policy %}
+        <div class="policy-card mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <span class="plan-badge">{{ active_policy.plan_tier.name }}</span>
+                </div>
+                <i class="fas fa-shield-alt fa-2x text-white opacity-50"></i>
+            </div>
+            <p class="text-white-50 mb-1 small">WEEKLY COVERAGE</p>
+            <div class="coverage-amount mb-3">₹{{ active_policy.weekly_coverage }}</div>
+            <div class="d-flex justify-content-between align-items-end">
+                <div>
+                    <p class="text-white-50 mb-0 small">PREMIUM</p>
+                    <p class="text-white fw-bold mb-0">₹{{ active_policy.weekly_premium }}/week</p>
+                </div>
+                <div class="text-end">
+                    <p class="text-white-50 mb-0 small">VALID UNTIL</p>
+                    <p class="text-white fw-bold mb-0">{{ active_policy.end_date|date:"d M Y" }}</p>
+                </div>
+            </div>
+            <hr style="border-color:rgba(255,255,255,0.2);">
+            <div class="d-flex align-items-center gap-2">
+                <span class="policy-status-dot"></span>
+                <span class="text-white small">Active — Monitoring your zone</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="nexura-stat-card text-center p-5 mb-4">
+            <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+            <h5 class="fw-bold mb-2">No Active Policy</h5>
+            <p class="text-muted small mb-4">You're not protected yet. Choose a plan to activate income protection.</p>
+            <a href="{% url 'policies:plans' %}" class="btn btn-primary rounded-pill px-5">
+                <i class="fas fa-shield-alt me-2"></i>Get Protected
+            </a>
+        </div>
+        {% endif %}
+
+        {# Worker Info Card #}
+        <div class="nexura-stat-card">
+            <h6 class="fw-bold mb-3 text-muted text-uppercase small">Your Details</h6>
+            <div class="d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">Platform</span>
+                    <span class="fw-semibold small">{{ profile.get_platform_display }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">Zone</span>
+                    <span class="fw-semibold small">{{ profile.zone.display_name|default:"—" }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">UPI ID</span>
+                    <span class="fw-semibold small">{{ profile.upi_id|default:"Not set" }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">KYC</span>
+                    <span class="status-badge
+                        {% if kyc_status == 'approved' or kyc_status == 'verified' %}active
+                        {% elif kyc_status == 'submitted' or kyc_status == 'in_review' %}pending
+                        {% else %}rejected{% endif %}">
+                        {{ kyc_status|capfirst }}
+                    </span>
+                </div>
+            </div>
+            <a href="{% url 'workers:account' %}" class="btn btn-outline-primary rounded-pill w-100 mt-3 py-2 small">
+                <i class="fas fa-edit me-1"></i>Edit Profile
+            </a>
+        </div>
+    </div>
+
+    {# Right column: claims, payouts, forecast #}
+    <div class="col-lg-7">
+
+        {# Weekly Forecast #}
+        {% if zone_forecast %}
+        <div class="nexura-stat-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">
+                    <i class="fas fa-cloud-sun-rain text-primary me-2"></i>
+                    Zone Risk Forecast
+                </h6>
+                <span class="text-muted small">{{ zone_forecast.forecast_date }}</span>
+            </div>
+            <div class="forecast-bar-container">
+                <div class="forecast-day-row">
+                    <span class="forecast-day-label small text-muted">Rain</span>
+                    <div class="forecast-bar-track">
+                        <div class="forecast-bar-fill {% if zone_forecast.rain_probability > 0.6 %}high{% elif zone_forecast.rain_probability > 0.3 %}moderate{% else %}low{% endif %}"
+                             style="width:{{ zone_forecast.rain_probability|floatformat:0 }}0%"></div>
+                    </div>
+                    <span class="text-muted small">{{ zone_forecast.rain_probability|floatformat:0 }}%</span>
+                </div>
+                <div class="forecast-day-row">
+                    <span class="forecast-day-label small text-muted">Heat</span>
+                    <div class="forecast-bar-track">
+                        <div class="forecast-bar-fill {% if zone_forecast.heat_probability > 0.6 %}high{% elif zone_forecast.heat_probability > 0.3 %}moderate{% else %}low{% endif %}"
+                             style="width:{{ zone_forecast.heat_probability|floatformat:0 }}0%"></div>
+                    </div>
+                    <span class="text-muted small">{{ zone_forecast.heat_probability|floatformat:0 }}%</span>
+                </div>
+                <div class="forecast-day-row">
+                    <span class="forecast-day-label small text-muted">AQI</span>
+                    <div class="forecast-bar-track">
+                        <div class="forecast-bar-fill {% if zone_forecast.aqi_probability > 0.6 %}high{% elif zone_forecast.aqi_probability > 0.3 %}moderate{% else %}low{% endif %}"
+                             style="width:{{ zone_forecast.aqi_probability|floatformat:0 }}0%"></div>
+                    </div>
+                    <span class="text-muted small">{{ zone_forecast.aqi_probability|floatformat:0 }}%</span>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-3" style="border-top:1px solid #e2e8f0;">
+                <span class="text-muted small">Overall risk this week</span>
+                <span class="forecast-risk-badge {{ zone_forecast.overall_risk_level|lower }}">
+                    {{ zone_forecast.overall_risk_level }}
+                </span>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Recent Claims #}
+        <div class="nexura-stat-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">
+                    <i class="fas fa-file-invoice-dollar text-primary me-2"></i>
+                    Recent Claims
+                </h6>
+                <a href="{% url 'claims:my_claims' %}" class="text-primary small">View All →</a>
+            </div>
+            {% if recent_claims %}
+            <table class="nexura-table">
+                <thead>
+                    <tr>
+                        <th>Trigger</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for claim in recent_claims %}
+                    <tr>
+                        <td>
+                            <span class="trigger-badge {{ claim.disruption_event.trigger_type|lower|cut:' ' }}">
+                                {{ claim.disruption_event.get_trigger_type_display|default:"—" }}
+                            </span>
+                        </td>
+                        <td class="fw-semibold">₹{{ claim.payout_amount|floatformat:0 }}</td>
+                        <td>
+                            <span class="status-badge
+                                {% if claim.status == 'approved' %}credited
+                                {% elif claim.status == 'pending' %}pending
+                                {% elif claim.status == 'rejected' %}rejected
+                                {% elif claim.status == 'on_hold' %}on-hold
+                                {% else %}paused{% endif %}">
+                                {{ claim.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="text-muted small">{{ claim.created_at|date:"d M" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-file-invoice-dollar fa-2x text-muted mb-2"></i>
+                <p class="text-muted small mb-0">No claims yet. You'll see them here when a trigger fires in your zone.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {# Recent Payouts #}
+        <div class="nexura-stat-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0">
+                    <i class="fas fa-rupee-sign text-primary me-2"></i>
+                    Recent Payouts
+                </h6>
+                <a href="{% url 'payouts:history' %}" class="text-primary small">View All →</a>
+            </div>
+            {% if recent_payouts %}
+            <table class="nexura-table">
+                <thead>
+                    <tr>
+                        <th>Amount</th>
+                        <th>UTR</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payout in recent_payouts %}
+                    <tr>
+                        <td class="fw-bold text-success">₹{{ payout.amount|floatformat:0 }}</td>
+                        <td>
+                            {% if payout.utr_number %}
+                            <span class="utr-ref">{{ payout.utr_number }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            <span class="status-badge
+                                {% if payout.status == 'credited' %}credited
+                                {% elif payout.status == 'pending' %}pending
+                                {% elif payout.status == 'failed' %}rejected
+                                {% else %}paused{% endif %}">
+                                {{ payout.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="text-muted small">{{ payout.initiated_at|date:"d M" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-rupee-sign fa-2x text-muted mb-2"></i>
+                <p class="text-muted small mb-0">No payouts yet. When a trigger fires and your claim is approved, the payout appears here.</p>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

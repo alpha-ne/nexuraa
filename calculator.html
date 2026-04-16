@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Premium Calculator — Nexura{% endblock %}
+
+{% block content %}
+
+{% include "includes/_breadcrumb.html" with title="Premium Calculator" subtitle="See your personalised weekly rate before you sign up" %}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <div class="nexura-stat-card shadow-sm p-5">
+                <h4 class="fw-bold mb-2 text-center">Your Personalised Premium</h4>
+                <p class="text-muted text-center mb-5">
+                    Our XGBoost model calculates your rate based on your zone's disruption history,
+                    delivery platform, and vehicle type.
+                </p>
+
+                <!-- Input form -->
+                <div class="row g-4 mb-5" id="calcForm">
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">Your Zone</label>
+                        <select id="zoneSelect" class="form-select" onchange="calculate()">
+                            <option value="">Select your area…</option>
+                            {% regroup zones by city as city_list %}
+                            {% for city_group in city_list %}
+                            <optgroup label="{{ city_group.grouper }}">
+                                {% for zone in city_group.list %}
+                                <option value="{{ zone.pk }}"
+                                        data-mult="{{ zone.risk_multiplier }}">
+                                    {{ zone.area_name }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">Delivery Platform</label>
+                        <select id="platformSelect" class="form-select" onchange="calculate()">
+                            <option value="zomato">Zomato</option>
+                            <option value="swiggy">Swiggy</option>
+                            <option value="amazon">Amazon Flex</option>
+                            <option value="zepto">Zepto</option>
+                            <option value="blinkit">Blinkit</option>
+                            <option value="dunzo">Dunzo</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">Vehicle Type</label>
+                        <select id="segmentSelect" class="form-select" onchange="calculate()">
+                            <option value="bike">Bike</option>
+                            <option value="bicycle">Bicycle</option>
+                            <option value="auto">Auto Rickshaw</option>
+                            <option value="car">Car</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <!-- Results (hidden until calculated) -->
+                <div id="calcResults" style="display:none;">
+
+                    <!-- Risk meter -->
+                    <div class="text-center mb-5 p-4 rounded-3" id="riskBanner">
+                        <p class="text-muted small mb-1 text-uppercase fw-bold">YOUR RISK SCORE</p>
+                        <p class="display-4 fw-black mb-1" id="riskScoreDisplay">—</p>
+                        <span class="badge rounded-pill px-4 py-2 fs-6" id="riskBadge">—</span>
+                        <p class="text-muted small mt-2 mb-0">
+                            Updated every Sunday using live weather + AQI + claim history data.
+                        </p>
+                    </div>
+
+                    <!-- Plan cards -->
+                    <div class="row g-4">
+
+                        <div class="col-md-4">
+                            <div class="plan-card text-center">
+                                <h6 class="fw-bold mb-1">Basic Shield</h6>
+                                <p class="text-muted small mb-3">₹500 coverage/week</p>
+                                <div class="plan-premium" id="basicPremium">₹—</div>
+                                <p class="plan-coverage">/week</p>
+                                <a href="{% url 'accounts:register' %}?plan=basic"
+                                   class="btn btn-outline-primary rounded-pill w-100 mt-3">
+                                    Get Basic
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="plan-card recommended text-center">
+                                <h6 class="fw-bold mb-1">Standard Shield</h6>
+                                <p class="text-muted small mb-3">₹1,000 coverage/week</p>
+                                <div class="plan-premium" id="standardPremium">₹—</div>
+                                <p class="plan-coverage">/week</p>
+                                <a href="{% url 'accounts:register' %}?plan=standard"
+                                   class="btn btn-primary rounded-pill w-100 mt-3">
+                                    Get Standard
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="plan-card text-center">
+                                <h6 class="fw-bold mb-1">Premium Shield</h6>
+                                <p class="text-muted small mb-3">₹2,000 coverage/week</p>
+                                <div class="plan-premium" id="premiumPremium">₹—</div>
+                                <p class="plan-coverage">/week</p>
+                                <a href="{% url 'accounts:register' %}?plan=premium"
+                                   class="btn btn-outline-primary rounded-pill w-100 mt-3">
+                                    Get Premium
+                                </a>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <p class="text-muted small text-center mt-4">
+                        <i class="fas fa-info-circle text-primary me-1"></i>
+                        Rates shown are estimates based on your zone's risk multiplier.
+                        Your actual rate is recalculated every Sunday using live data.
+                    </p>
+
+                </div>
+
+                <!-- Loading spinner -->
+                <div id="calcLoading" class="text-center py-4" style="display:none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Calculating…</span>
+                    </div>
+                    <p class="text-muted small mt-2">Running XGBoost model…</p>
+                </div>
+
+            </div>
+
+            <!-- Info strip -->
+            <div class="row g-4 mt-4">
+                <div class="col-md-4 text-center">
+                    <i class="fas fa-robot fa-2x text-primary mb-2"></i>
+                    <h6 class="fw-bold">XGBoost Model</h6>
+                    <p class="text-muted small">44 features · AUC 0.66 · Trained on 7,000 samples</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <i class="fas fa-sync-alt fa-2x text-primary mb-2"></i>
+                    <h6 class="fw-bold">Updated Weekly</h6>
+                    <p class="text-muted small">Every Sunday using live weather + AQI + your claim history</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <i class="fas fa-lock fa-2x text-primary mb-2"></i>
+                    <h6 class="fw-bold">Price Cap</h6>
+                    <p class="text-muted small">Never more than 1.5× the advertised plan rate</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let debounceTimer = null;
+
+function calculate() {
+    const zoneId   = document.getElementById('zoneSelect').value;
+    const platform = document.getElementById('platformSelect').value;
+    const segment  = document.getElementById('segmentSelect').value;
+
+    if (!zoneId) return;
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => _doCalculate(zoneId, platform, segment), 300);
+}
+
+function _doCalculate(zoneId, platform, segment) {
+    document.getElementById('calcLoading').style.display  = 'block';
+    document.getElementById('calcResults').style.display  = 'none';
+
+    fetch('/api/v1/pricing/calculate/', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
+        body:    JSON.stringify({ zone_id: zoneId, platform, segment }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('calcLoading').style.display = 'none';
+        document.getElementById('calcResults').style.display = 'block';
+
+        const score  = data.risk_score;
+        const label  = data.risk_label;
+        const premiums = data.premiums || {};
+
+        // Risk display
+        document.getElementById('riskScoreDisplay').textContent = score.toFixed(3);
+        const badge  = document.getElementById('riskBadge');
+        const banner = document.getElementById('riskBanner');
+
+        const colors = { Minimal:'#dcfce7,#166534', Low:'#dbeafe,#1e40af',
+                         Moderate:'#fef3c7,#92400e', High:'#fee2e2,#991b1b' };
+        const [bg, fg] = (colors[label] || '#f3f4f6,#374151').split(',');
+        banner.style.background  = bg;
+        badge.style.background   = bg;
+        badge.style.color        = fg;
+        badge.textContent        = label + ' Risk';
+
+        // Premiums
+        if (premiums.basic)    document.getElementById('basicPremium').textContent    = '₹' + Math.round(premiums.basic);
+        if (premiums.standard) document.getElementById('standardPremium').textContent = '₹' + Math.round(premiums.standard);
+        if (premiums.premium)  document.getElementById('premiumPremium').textContent  = '₹' + Math.round(premiums.premium);
+    })
+    .catch(() => {
+        document.getElementById('calcLoading').style.display = 'none';
+    });
+}
+
+function getCsrf() {
+    // Try cookie first, then meta tag
+    const fromCookie = document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+    if (fromCookie) return fromCookie;
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.content : '';
+}
+
+// Auto-trigger on page load if a zone is pre-selected
+document.addEventListener('DOMContentLoaded', function() {
+    const sel = document.getElementById('zoneSelect');
+    if (sel && sel.value) calculate();
+});
+</script>
+{% endblock %}

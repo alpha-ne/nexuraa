@@ -1,0 +1,266 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Account Settings — Nexura{% endblock %}
+{% block page_title %}Account Settings{% endblock %}
+{% block page_subtitle %}Manage your profile, UPI ID, KYC and language preferences.{% endblock %}
+{% block sidebar_account %}active{% endblock %}
+{% block sidebar_coverage %}{{ profile.active_policy.weekly_coverage|default:"—" }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+    {# ── Left: Profile Form ───────────────────────────────────────────── #}
+    <div class="col-lg-8">
+
+        {# Profile Details #}
+        <div class="nexura-stat-card mb-4">
+            <h6 class="fw-bold mb-4 text-uppercase small text-muted">
+                <i class="fas fa-user me-2 text-primary"></i>Profile Details
+            </h6>
+            <form method="POST" action="{% url 'workers:account' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="profile">
+                <div class="row g-3">
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold small">Mobile Number</label>
+                        <input type="text" class="form-control bg-light" value="{{ request.user.mobile }}" disabled>
+                        <div class="form-text">Mobile number cannot be changed. Contact support if needed.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Full Name *</label>
+                        <input type="text" name="name" class="form-control"
+                               value="{{ profile.name }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Email Address</label>
+                        <input type="email" name="email" class="form-control"
+                               placeholder="optional@email.com"
+                               value="{{ request.user.email|default:'' }}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Delivery Platform *</label>
+                        <select name="platform" class="form-select" required>
+                            {% for val, label in platform_choices %}
+                            <option value="{{ val }}" {% if profile.platform == val %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Vehicle Type</label>
+                        <select name="segment" class="form-select">
+                            {% for val, label in segment_choices %}
+                            <option value="{{ val }}" {% if profile.segment == val %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-semibold small">Operating Zone</label>
+                        <select name="zone" class="form-select">
+                            <option value="">— Keep current zone —</option>
+                            {% regroup zones by city as city_list %}
+                            {% for city_group in city_list %}
+                            <optgroup label="{{ city_group.grouper }}">
+                                {% for zone in city_group.list %}
+                                <option value="{{ zone.pk }}"
+                                    {% if profile.zone.pk == zone.pk %}selected{% endif %}>
+                                    {{ zone.area_name }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Preferred Language</label>
+                        <select name="language" class="form-select">
+                            {% for val, label in language_choices %}
+                            <option value="{{ val }}"
+                                {% if request.user.language == val %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">WhatsApp alerts will be sent in this language.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary rounded-pill px-5 py-2 fw-semibold">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        {# UPI ID Update #}
+        <div class="nexura-stat-card mb-4" id="upi">
+            <h6 class="fw-bold mb-1 text-uppercase small text-muted">
+                <i class="fas fa-rupee-sign me-2 text-primary"></i>UPI ID
+            </h6>
+            <p class="text-muted small mb-4">
+                All payouts are sent directly to this UPI handle. Changing it
+                will require Razorpay to re-validate your account (24h delay for next payout).
+            </p>
+            <div class="nexura-alert info mb-4">
+                <span class="alert-icon"><i class="fas fa-info-circle"></i></span>
+                <div>
+                    <strong>Current UPI ID:</strong>
+                    {{ profile.upi_id|default:"Not set — payouts will fail until you add one." }}
+                </div>
+            </div>
+            <form method="POST" action="{% url 'workers:account' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upi">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold small">New UPI ID</label>
+                        <input type="text" name="upi_id" class="form-control"
+                               placeholder="yourname@upi" required>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-outline-primary rounded-pill w-100 py-2 fw-semibold">
+                            Update UPI ID
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        {# KYC Section #}
+        <div class="nexura-stat-card" id="kyc">
+            <h6 class="fw-bold mb-1 text-uppercase small text-muted">
+                <i class="fas fa-id-card me-2 text-primary"></i>KYC Verification
+            </h6>
+            <p class="text-muted small mb-4">
+                Required for payout eligibility. Your Aadhaar number is hashed immediately
+                and never stored in plaintext.
+            </p>
+
+            {% if kyc_status == 'verified' %}
+            <div class="nexura-alert success">
+                <span class="alert-icon"><i class="fas fa-check-circle"></i></span>
+                <div><strong>KYC Verified.</strong> Your identity has been confirmed. Full payout eligibility active.</div>
+            </div>
+
+            {% elif kyc_status == 'submitted' %}
+            <div class="nexura-alert info">
+                <span class="alert-icon"><i class="fas fa-clock"></i></span>
+                <div><strong>KYC Under Review.</strong> Verification usually completes within 24 hours.</div>
+            </div>
+
+            {% else %}
+            {% if kyc_status == 'rejected' %}
+            <div class="nexura-alert danger mb-4">
+                <span class="alert-icon"><i class="fas fa-times-circle"></i></span>
+                <div>
+                    <strong>KYC Rejected.</strong>
+                    {{ request.user.kyc.rejection_reason|default:"Please resubmit with a valid Aadhaar number." }}
+                </div>
+            </div>
+            {% endif %}
+            <form method="POST" action="{% url 'workers:kyc_submit' %}">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold small">Aadhaar Number</label>
+                        <input type="text" name="aadhaar" class="form-control"
+                               placeholder="XXXX XXXX XXXX"
+                               maxlength="14" inputmode="numeric"
+                               pattern="[0-9 ]{12,14}" required>
+                        <div class="form-text">
+                            <i class="fas fa-lock text-success me-1"></i>
+                            Hashed with SHA-256 immediately. Never stored as plaintext.
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-warning rounded-pill w-100 py-2 fw-semibold">
+                            Submit for Verification
+                        </button>
+                    </div>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+
+    </div>
+
+    {# ── Right: Summary card ──────────────────────────────────────────── #}
+    <div class="col-lg-4">
+
+        <div class="nexura-stat-card mb-4">
+            <div class="text-center mb-4">
+                <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3"
+                     style="width:72px;height:72px;">
+                    <i class="fas fa-user text-primary fa-2x"></i>
+                </div>
+                <h5 class="fw-bold mb-0">{{ profile.name }}</h5>
+                <p class="text-muted small">{{ request.user.mobile }}</p>
+            </div>
+            <div class="d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between py-2" style="border-bottom:1px solid #e2e8f0;">
+                    <span class="text-muted small">Platform</span>
+                    <span class="fw-semibold small">{{ profile.get_platform_display }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-2" style="border-bottom:1px solid #e2e8f0;">
+                    <span class="text-muted small">Zone</span>
+                    <span class="fw-semibold small">{{ profile.zone.display_name|default:"—" }}</span>
+                </div>
+                <div class="d-flex justify-content-between py-2" style="border-bottom:1px solid #e2e8f0;">
+                    <span class="text-muted small">KYC</span>
+                    <span class="status-badge {% if kyc_status == 'verified' %}active{% elif kyc_status == 'submitted' %}pending{% else %}rejected{% endif %}">
+                        {{ kyc_status|capfirst }}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between py-2" style="border-bottom:1px solid #e2e8f0;">
+                    <span class="text-muted small">Risk Score</span>
+                    <span class="fw-semibold small">
+                        {{ profile.risk_score|floatformat:2 }}
+                        <span class="status-badge ms-1 {% if profile.risk_color == 'danger' %}rejected{% elif profile.risk_color == 'warning' %}pending{% else %}active{% endif %}">
+                            {{ profile.risk_label }}
+                        </span>
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between py-2">
+                    <span class="text-muted small">Grace Tokens</span>
+                    <span class="fw-semibold small">{{ profile.grace_tokens }}/year</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="nexura-stat-card">
+            <h6 class="fw-bold mb-3 text-muted text-uppercase small">Quick Links</h6>
+            <div class="d-flex flex-column gap-2">
+                <a href="{% url 'workers:dashboard' %}" class="btn btn-light rounded-pill text-start py-2 px-3 small">
+                    <i class="fas fa-tachometer-alt me-2 text-primary"></i>Dashboard
+                </a>
+                <a href="{% url 'policies:my_policy' %}" class="btn btn-light rounded-pill text-start py-2 px-3 small">
+                    <i class="fas fa-shield-alt me-2 text-primary"></i>My Policy
+                </a>
+                <a href="{% url 'claims:my_claims' %}" class="btn btn-light rounded-pill text-start py-2 px-3 small">
+                    <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>My Claims
+                </a>
+                <a href="{% url 'documents:income_dna' %}" class="btn btn-light rounded-pill text-start py-2 px-3 small">
+                    <i class="fas fa-file-pdf me-2 text-danger"></i>IncomeDNA Report
+                </a>
+                <a href="{% url 'accounts:logout' %}" class="btn btn-light rounded-pill text-start py-2 px-3 small text-danger">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

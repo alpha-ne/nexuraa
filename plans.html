@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% load static nexura_tags %}
+
+{% block title %}Choose Your Plan — Nexura Income Protection{% endblock %}
+{% block nav_plans %}active{% endblock %}
+
+{% block content %}
+
+{% include "includes/_breadcrumb.html" with title="Choose Your Shield" subtitle="Starting at ₹29/week — less than a cup of chai" %}
+
+<!-- ── Comparison intro ──────────────────────────────────────────────── -->
+<div class="container py-5">
+
+    <div class="text-center mb-5 wow fadeInUp">
+        <h4 class="text-primary text-uppercase small fw-bold mb-2">Affordable Plans</h4>
+        <h2 class="display-5 fw-bold mb-3">All Plans Include Zero-Touch Claims</h2>
+        <p class="text-muted fs-5 mx-auto" style="max-width:620px;">
+            When a trigger fires in your zone, a claim is filed automatically.
+            You don't call anyone. You don't fill any form.
+            Money lands in your UPI within 2 hours.
+        </p>
+    </div>
+
+    <!-- ── Plan Cards ────────────────────────────────────────────────── -->
+    <div class="row g-4 justify-content-center mb-5">
+        {% for plan in plans %}
+        <div class="col-md-6 col-lg-4 wow fadeInUp" data-wow-delay="0.{{ forloop.counter }}s">
+            <div class="plan-card h-100
+                {% if plan.is_recommended %}recommended{% endif %}
+                {% if active_policy and active_policy.plan_tier.slug == plan.slug %}selected{% endif %}
+                {% if selected_slug == plan.slug %}selected{% endif %}">
+
+                <!-- Plan header -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-1">{{ plan.name }}</h5>
+                        {% if plan.is_recommended %}
+                        <span class="badge bg-primary rounded-pill small">Most Popular</span>
+                        {% endif %}
+                    </div>
+                    {% if active_policy and active_policy.plan_tier.slug == plan.slug %}
+                    <span class="status-badge active">Current</span>
+                    {% endif %}
+                </div>
+
+                <!-- Pricing -->
+                <div class="plan-premium mb-1">
+                    ₹{{ plan.base_premium|floatformat:0 }}
+                    <span class="fs-6 fw-normal text-muted">/week</span>
+                </div>
+                <p class="plan-coverage mb-4">
+                    <i class="fas fa-shield-alt text-primary me-1"></i>
+                    ₹{{ plan.weekly_coverage|floatformat:0 }} coverage per trigger event
+                </p>
+
+                <hr>
+
+                <!-- Features -->
+                <div class="d-flex flex-column gap-2 mb-4">
+                    {% for feature in plan.features %}
+                    <p class="plan-feature mb-0">
+                        <i class="fas fa-check-circle text-success"></i>
+                        {{ feature }}
+                    </p>
+                    {% endfor %}
+                </div>
+
+                <!-- CTA -->
+                {% if user.is_authenticated %}
+                    {% if active_policy and active_policy.plan_tier.slug == plan.slug %}
+                    <a href="{% url 'policies:my_policy' %}" class="btn btn-outline-primary rounded-pill w-100 py-2">
+                        View My Policy
+                    </a>
+                    {% else %}
+                    <a href="{% url 'policies:select_plan' plan.slug %}" class="btn btn-primary rounded-pill w-100 py-2 fw-semibold">
+                        {% if active_policy %}Switch to {{ plan.name }}{% else %}Get {{ plan.name }}{% endif %}
+                    </a>
+                    {% endif %}
+                {% else %}
+                <a href="{% url 'accounts:register' %}?plan={{ plan.slug }}" class="btn btn-primary rounded-pill w-100 py-2 fw-semibold">
+                    Get {{ plan.name }}
+                </a>
+                {% endif %}
+
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ── Comparison Table ──────────────────────────────────────────── -->
+    <div class="nexura-stat-card wow fadeInUp mb-5">
+        <h5 class="fw-bold mb-4 text-center">Full Feature Comparison</h5>
+        <div class="table-responsive">
+            <table class="table text-center align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="text-start ps-3" style="width:40%;">Feature</th>
+                        <th class="text-primary">Basic<br><small class="text-muted fw-normal">₹29/wk</small></th>
+                        <th class="text-primary fw-bold" style="background:#f0f7ff;">Standard<br><small class="text-muted fw-normal">₹49/wk</small></th>
+                        <th class="text-primary">Premium<br><small class="text-muted fw-normal">₹79/wk</small></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in comparison_rows %}
+                    <tr>
+                        <td class="text-start ps-3 text-muted small">{{ row.feature }}</td>
+                        <td>{% if row.basic %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}</td>
+                        <td style="background:#f8fbff;">{% if row.standard %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}</td>
+                        <td>{% if row.premium %}<i class="fas fa-check text-success"></i>{% else %}<i class="fas fa-minus text-muted"></i>{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <!-- Static fallback if comparison_rows not in context -->
+                    {% for row in "All 6 trigger types|✓|✓|✓,Zero-touch claim filing|✓|✓|✓,UPI payout < 2 hours|✓|✓|✓,WhatsApp alerts|✓|✓|✓,Email alerts|✗|✗|✓,Weekly risk forecast|✗|✓|✓,Risk Circle access|✗|✓|✓,IncomeDNA report|✗|✗|✓,Dynamic risk pricing|✗|✗|✓,Priority support|✗|✗|✓"|split:"," %}
+                    {% endfor %}
+                    <tr><td class="text-start ps-3 text-muted small">All 6 trigger types</td>
+                        <td><i class="fas fa-check text-success"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-check text-success"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">Zero-touch claim filing</td>
+                        <td><i class="fas fa-check text-success"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-check text-success"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">UPI payout &lt; 2 hours</td>
+                        <td><i class="fas fa-check text-success"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-check text-success"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">WhatsApp alerts</td>
+                        <td><i class="fas fa-check text-success"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-check text-success"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">Email alerts</td>
+                        <td><i class="fas fa-minus text-muted"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-minus text-muted"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">Weekly risk forecast</td>
+                        <td><i class="fas fa-minus text-muted"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-check text-success"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">Risk Circle access</td>
+                        <td><i class="fas fa-minus text-muted"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-check text-success"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">IncomeDNA report</td>
+                        <td><i class="fas fa-minus text-muted"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-minus text-muted"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">Dynamic risk pricing</td>
+                        <td><i class="fas fa-minus text-muted"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-minus text-muted"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    <tr><td class="text-start ps-3 text-muted small">Priority support</td>
+                        <td><i class="fas fa-minus text-muted"></i></td>
+                        <td style="background:#f8fbff;"><i class="fas fa-minus text-muted"></i></td>
+                        <td><i class="fas fa-check text-success"></i></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── FAQ Strip ─────────────────────────────────────────────────── -->
+    <div class="row g-4 wow fadeInUp">
+        <div class="col-md-4">
+            <div class="text-center p-4">
+                <i class="fas fa-rupee-sign fa-2x text-primary mb-3"></i>
+                <h6 class="fw-bold">How is payment collected?</h6>
+                <p class="text-muted small">Via Razorpay Autopay — one mandate setup, then auto-debited every Monday. No manual payments ever.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="text-center p-4">
+                <i class="fas fa-exchange-alt fa-2x text-primary mb-3"></i>
+                <h6 class="fw-bold">Can I switch plans?</h6>
+                <p class="text-muted small">Yes, at any time from your dashboard. The new plan activates from the next Monday.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="text-center p-4">
+                <i class="fas fa-times-circle fa-2x text-primary mb-3"></i>
+                <h6 class="fw-bold">Can I cancel?</h6>
+                <p class="text-muted small">Yes. You remain covered until the end of the current week. No lock-in, no penalties.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

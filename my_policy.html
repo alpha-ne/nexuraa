@@ -1,0 +1,194 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}My Policy — Nexura{% endblock %}
+{% block page_title %}My Policy{% endblock %}
+{% block page_subtitle %}Your current coverage details and payment history.{% endblock %}
+{% block sidebar_policy %}active{% endblock %}
+{% block sidebar_coverage %}{{ active_policy.weekly_coverage|default:"—" }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+
+    <!-- Left: Active Policy -->
+    <div class="col-lg-7">
+
+        {% if active_policy %}
+
+        <!-- Policy card -->
+        <div class="policy-card mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <span class="plan-badge">{{ active_policy.plan_tier.name }}</span>
+                <span class="status-badge active">
+                    <span class="policy-status-dot"></span>Active
+                </span>
+            </div>
+            <p class="text-white-50 mb-1 small">WEEKLY COVERAGE</p>
+            <div class="coverage-amount mb-3">{{ active_policy.coverage_display }}</div>
+            <div class="row g-3">
+                <div class="col-6">
+                    <p class="text-white-50 mb-0 small">WEEKLY PREMIUM</p>
+                    <p class="text-white fw-bold mb-0 fs-5">{{ active_policy.premium_display }}</p>
+                </div>
+                <div class="col-6">
+                    <p class="text-white-50 mb-0 small">DAYS REMAINING</p>
+                    <p class="text-white fw-bold mb-0 fs-5">{{ active_policy.days_remaining }} days</p>
+                </div>
+                <div class="col-6">
+                    <p class="text-white-50 mb-0 small">VALID FROM</p>
+                    <p class="text-white fw-semibold mb-0">{{ active_policy.start_date|date:"d M Y" }}</p>
+                </div>
+                <div class="col-6">
+                    <p class="text-white-50 mb-0 small">VALID UNTIL</p>
+                    <p class="text-white fw-semibold mb-0">{{ active_policy.end_date|date:"d M Y" }}</p>
+                </div>
+            </div>
+            <hr style="border-color:rgba(255,255,255,0.2);">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="policy-status-dot"></span>
+                    <span class="text-white small">Monitoring your zone 24/7</span>
+                </div>
+                <span class="text-white-50 small">
+                    Autopay {{ active_policy.mandate_confirmed|yesno:"Active,Pending" }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Policy details -->
+        <div class="nexura-stat-card mb-4">
+            <h6 class="fw-bold mb-3 text-uppercase small text-muted">Plan Features</h6>
+            <div class="row g-2">
+                {% for feature in active_policy.plan_tier.features %}
+                <div class="col-md-6">
+                    <p class="plan-feature mb-1">
+                        <i class="fas fa-check-circle text-success"></i> {{ feature }}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Danger zone -->
+        <div class="nexura-stat-card border border-danger-subtle">
+            <h6 class="fw-bold mb-3 text-danger text-uppercase small">Cancel Policy</h6>
+            <p class="text-muted small mb-3">
+                Cancelling stops the next weekly auto-debit. You remain covered until
+                <strong>{{ active_policy.end_date|date:"d M Y" }}</strong>.
+            </p>
+            <button type="button" class="btn btn-outline-danger rounded-pill px-4 py-2 small"
+                    data-bs-toggle="modal" data-bs-target="#cancelModal">
+                Cancel Policy
+            </button>
+        </div>
+
+        <!-- Cancel confirmation modal -->
+        <div class="modal fade" id="cancelModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content rounded-4">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold">Cancel Your Policy?</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="nexura-alert warning mb-3">
+                            <span class="alert-icon"><i class="fas fa-exclamation-triangle"></i></span>
+                            <div>You'll remain covered until <strong>{{ active_policy.end_date|date:"d M Y" }}</strong>, after which no claims will be processed.</div>
+                        </div>
+                        <p class="text-muted small">No refund is issued for the current week's premium.</p>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">
+                            Keep My Policy
+                        </button>
+                        <form method="POST" action="{% url 'policies:cancel_policy' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger rounded-pill px-4">
+                                Yes, Cancel
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+
+        <!-- No active policy -->
+        <div class="nexura-stat-card text-center p-5">
+            <i class="fas fa-shield-alt fa-4x text-muted mb-4"></i>
+            <h4 class="fw-bold mb-2">No Active Policy</h4>
+            <p class="text-muted mb-4">
+                You're currently unprotected. Choose a plan to activate income protection
+                for your zone.
+            </p>
+            <a href="{% url 'policies:plans' %}" class="btn btn-primary rounded-pill px-5 py-3 fw-semibold">
+                <i class="fas fa-shield-alt me-2"></i>Get Protected Now
+            </a>
+        </div>
+
+        {% endif %}
+
+    </div>
+
+    <!-- Right: Plan options + history -->
+    <div class="col-lg-5">
+
+        <!-- Switch plan -->
+        <div class="nexura-stat-card mb-4">
+            <h6 class="fw-bold mb-3 text-uppercase small text-muted">
+                {% if active_policy %}Switch Plan{% else %}Available Plans{% endif %}
+            </h6>
+            {% for plan in plans %}
+            <div class="d-flex align-items-center justify-content-between py-3
+                        {% if not forloop.last %}border-bottom{% endif %}">
+                <div>
+                    <p class="fw-semibold mb-0 small">{{ plan.name }}</p>
+                    <p class="text-muted mb-0" style="font-size:12px;">
+                        ₹{{ plan.weekly_coverage|floatformat:0 }} coverage
+                        {% if plan.is_recommended %}
+                        <span class="badge bg-primary rounded-pill ms-1" style="font-size:9px;">Popular</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="text-end">
+                    <p class="fw-bold mb-0">₹{{ plan.base_premium|floatformat:0 }}<small class="text-muted fw-normal">/wk</small></p>
+                    {% if active_policy and active_policy.plan_tier.slug == plan.slug %}
+                    <span class="text-success small fw-semibold">Current</span>
+                    {% else %}
+                    <a href="{% url 'policies:select_plan' plan.slug %}" class="text-primary small fw-semibold">
+                        {% if active_policy %}Switch{% else %}Select{% endif %} →
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Policy history -->
+        {% if past_policies %}
+        <div class="nexura-stat-card">
+            <h6 class="fw-bold mb-3 text-uppercase small text-muted">Policy History</h6>
+            {% for policy in past_policies %}
+            <div class="d-flex align-items-center justify-content-between py-2
+                        {% if not forloop.last %}border-bottom{% endif %}">
+                <div>
+                    <p class="fw-semibold mb-0 small">{{ policy.plan_tier.name }}</p>
+                    <p class="text-muted mb-0" style="font-size:11px;">
+                        {{ policy.start_date|date:"d M" }} – {{ policy.end_date|date:"d M Y" }}
+                    </p>
+                </div>
+                <span class="status-badge
+                    {% if policy.status == 'expired' %}paused
+                    {% elif policy.status == 'cancelled' %}rejected
+                    {% else %}pending{% endif %}">
+                    {{ policy.get_status_display }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

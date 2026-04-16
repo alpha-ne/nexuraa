@@ -1,0 +1,73 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Confirm Plan — {{ plan.name }} | Nexura{% endblock %}
+{% block page_title %}Confirm Your Plan{% endblock %}
+{% block page_subtitle %}Review the details before activating your shield.{% endblock %}
+{% block sidebar_policy %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+
+        <!-- Plan summary card -->
+        <div class="policy-card mb-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <span class="plan-badge">{{ plan.name }}</span>
+                {% if plan.is_recommended %}
+                <span class="badge bg-white bg-opacity-25 text-white">Most Popular</span>
+                {% endif %}
+            </div>
+            <p class="text-white-50 mb-1 small">WEEKLY COVERAGE</p>
+            <div class="coverage-amount mb-3">₹{{ plan.weekly_coverage|floatformat:0 }}</div>
+            <div class="d-flex justify-content-between">
+                <div>
+                    <p class="text-white-50 mb-0 small">WEEKLY PREMIUM</p>
+                    <p class="text-white fw-bold mb-0 fs-4">₹{{ plan.base_premium|floatformat:0 }}</p>
+                </div>
+                <div class="text-end">
+                    <p class="text-white-50 mb-0 small">PAYMENT</p>
+                    <p class="text-white fw-semibold mb-0">Auto-debit via Razorpay</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- What's included -->
+        <div class="nexura-stat-card mb-4">
+            <h6 class="fw-bold mb-3 text-uppercase small text-muted">What's Included</h6>
+            <div class="row g-2">
+                {% for feature in plan.features %}
+                <div class="col-md-6">
+                    <p class="plan-feature mb-1">
+                        <i class="fas fa-check-circle text-success"></i> {{ feature }}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Payment info -->
+        <div class="nexura-alert info mb-4">
+            <span class="alert-icon"><i class="fas fa-info-circle"></i></span>
+            <div>
+                <strong>How payment works:</strong> You'll set up a Razorpay Autopay mandate.
+                ₹{{ plan.base_premium|floatformat:0 }} will be auto-debited every Monday.
+                You can cancel any time — coverage remains until end of the current week.
+            </div>
+        </div>
+
+        <!-- Confirm button -->
+        <form method="POST" action="{% url 'policies:select_plan' plan.slug %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary rounded-pill w-100 py-3 fw-semibold fs-5 mb-3">
+                <i class="fas fa-shield-alt me-2"></i>
+                Activate {{ plan.name }} — ₹{{ plan.base_premium|floatformat:0 }}/week
+            </button>
+        </form>
+        <div class="text-center">
+            <a href="{% url 'policies:plans' %}" class="text-muted small">← Back to all plans</a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
